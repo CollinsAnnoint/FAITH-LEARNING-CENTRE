@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Choose Home Page Design — FAITH LEARNING CENTRE</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/site.css" />
+  <link rel="stylesheet" href="/homes.css" />
+</head>
+<body class="chooser">
+  <header class="chooser-head">
+    <div class="chooser-head-in">
+      <h1>Choose your home page design</h1>
+      <p>
+        Seven complete, working home page layouts for FAITH LEARNING CENTRE. Each one uses the same live school
+        data — enrolment, term dates, fees, events and photographs — and all of them carry the Terms &amp; Conditions,
+        the admission enquiry form and the four portals. Open any design full-size, then set it as the home page
+        for every visitor.
+      </p>
+      <div class="chooser-meta">
+        <span id="current-design-label">Checking current design…</span>
+        <span>Real school photography</span>
+        <span>Navy · gold · slate palette</span>
+        <a href="/" style="color:#fff;text-decoration:underline;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:.25rem .6rem">View current home page →</a>
+        <a href="/app" style="color:#fff;text-decoration:underline;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:.25rem .6rem">Open the school portal →</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="chooser-body">
+    <div class="design-grid" id="design-grid"></div>
+    <div style="margin-top:2rem;background:#fff;border:1px solid var(--line);border-radius:12px;padding:1.1rem 1.2rem;font-size:.86rem;color:var(--slate-700);line-height:1.7">
+      <strong>Tip:</strong> the chosen design is saved on the server, so every visitor sees it. You can also change it
+      later from <strong>Portal → Backend Customization Zone → School Identity &amp; Theme → Home page design</strong>.
+      Each design can be opened with a direct link, e.g. <code>/preview?design=5</code>, without affecting the live site.
+    </div>
+  </main>
+
+  <div id="modal-root"></div>
+  <div id="toast-root" class="toast-container"></div>
+
+  <script src="/app.js"></script>
+  <script src="/terms.js"></script>
+  <script src="/landing.js"></script>
+  <script>
+    /* Chooser logic: miniature wireframe previews + apply */
+    (function () {
+      const MOCKUPS = {
+        "1": `<div class="mock"><div class="mock-nav"><i></i><i></i><i></i><b></b></div>
+                <div class="mock-hero mock-photo"><div class="mock-dim"></div>
+                  <div class="mock-lines"><i class="gold"></i><i class="w80"></i><i class="w60"></i></div></div>
+                <div class="mock-stats"><span></span><span></span><span></span><span></span></div>
+                <div class="mock-row"><div class="mock-cell"></div><div class="mock-cell"></div></div></div>`,
+        "2": `<div class="mock"><div class="mock-nav"><i></i><i></i><i></i><b></b></div>
+                <div class="mock-split"><div class="left"></div><div class="right"></div></div>
+                <div class="mock-stats"><span></span><span></span><span></span><span></span></div>
+                <div class="mock-row"><div class="mock-cell"></div><div class="mock-cell img"></div></div></div>`,
+        "3": `<div class="mock"><div class="mock-masthead"><i></i></div>
+                <div class="mock-hero mock-photo"><div class="mock-dim"></div>
+                  <div class="mock-lines"><i class="w60"></i><i class="w40"></i></div></div>
+                <div class="mock-cols"><div></div><div></div><div></div></div></div>`,
+        "4": `<div class="mock" style="background:#fff"><div class="mock-nav"><i></i><i></i><i></i><b></b></div>
+                <div class="mock-hero mock-photo" style="flex:.7"><div class="mock-dim"></div></div>
+                <div class="mock-row" style="flex:.45"><div class="mock-cell" style="border-top:2px solid var(--gold-500)"></div><div class="mock-cell"></div></div>
+                <div class="mock-row"><div class="mock-cell"></div><div class="mock-cell"></div><div class="mock-cell"></div></div></div>`,
+        "5": `<div class="mock"><div class="mock-nav"><i></i><i></i><i></i><b></b></div>
+                <div class="mock-bento"><div class="t navy"></div><div class="t photo"></div><div class="t photo"></div>
+                  <div class="t gold"></div><div class="t photo"></div></div></div>`,
+        "6": `<div class="mock mock-dark"><div class="mock-nav"><i></i><i></i><i></i><b></b></div>
+                <div class="mock-split"><div class="left"></div>
+                  <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:4px">
+                    <div class="mock-cell" style="background:#12355c;border-color:#1d3a5e"></div>
+                    <div class="mock-cell" style="background:#12355c;border-color:#1d3a5e"></div>
+                    <div class="mock-cell" style="background:#12355c;border-color:#1d3a5e"></div>
+                    <div class="mock-cell" style="background:#12355c;border-color:#1d3a5e"></div>
+                  </div></div>
+                <div class="mock-row"><div class="mock-cell"></div><div class="mock-cell"></div><div class="mock-cell"></div></div></div>`,
+        "7": `<div class="mock"><div class="mock-nav"><i></i><i></i><i></i><b></b></div>
+                <div class="mock-apply"><div class="copy"></div><div class="form"></div></div>
+                <div class="mock-row" style="max-height:26px"><div class="mock-cell short" style="max-width:100%"></div></div>
+                <div class="mock-barfix"></div></div>`
+      };
+
+      async function load() {
+        try {
+          window.State = window.State || { db: null };
+          State.db = await api("/api/bootstrap");
+        } catch (e) { /* previews still render */ }
+        render();
+      }
+
+      function render() {
+        const current = String((State.db && State.db.systemConfig.branding.homeDesign) || "1");
+        const label = document.getElementById("current-design-label");
+        if (label) {
+          const d = Homes.DESIGNS.find((x) => x.id === current);
+          label.textContent = "Live design: " + (d ? `${d.id} — ${d.name}` : current);
+        }
+        document.getElementById("design-grid").innerHTML = Homes.DESIGNS.map((d) => `
+          <article class="design-card ${d.id === current ? "active" : ""}" data-design="${d.id}">
+            <div class="design-mock">${MOCKUPS[d.id] || ""}</div>
+            <div class="design-body">
+              <div class="design-title-row">
+                <h3>${esc(d.name)}</h3>
+                <span class="design-num">${d.id}${d.id === current ? " · LIVE" : ""}</span>
+              </div>
+              <div class="design-tone">${esc(d.tone)}</div>
+              <p class="design-blurb">${esc(d.blurb)}</p>
+              <div class="design-best"><strong>Best for:</strong> ${esc(d.best)}</div>
+              <div class="design-tags">${d.tags.map((t) => `<span>${esc(t)}</span>`).join("")}</div>
+              <div class="design-actions">
+                <button class="btn ${d.id === current ? "btn-outline" : "btn-primary"} btn-sm"
+                        onclick="Chooser.use('${d.id}')">${d.id === current ? "Re-apply" : "Use this design"}</button>
+                <a class="btn btn-outline btn-sm" href="/preview?design=${d.id}" target="_blank" rel="noopener">Open full preview</a>
+              </div>
+            </div>
+          </article>`).join("");
+      }
+
+      window.Chooser = {
+        async use(id) {
+          const card = document.querySelector(`[data-design="${id}"]`);
+          const btns = card ? card.querySelectorAll("button") : [];
+          btns.forEach((b) => (b.disabled = true));
+          try {
+            await api("/api/config/home-design", "PUT", { design: String(id) });
+            try { localStorage.setItem("flc_home_design", String(id)); } catch (e) {}
+            toast(`Design ${id} saved — it is now the live home page`, "success");
+          } catch (e) {
+            toast(e.message, "error");
+          } finally {
+            btns.forEach((b) => (b.disabled = false));
+            if (State.db) State.db.systemConfig.branding.homeDesign = String(id);
+            render();
+          }
+        }
+      };
+
+      if (document.readyState === "loading") window.addEventListener("DOMContentLoaded", load);
+      else load();
+    })();
+  </script>
+</body>
+</html>
